@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Scanner</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+        header {
+            background-color: #00C4B3;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            font-size: 26px;
+            margin: 0;
+        }
+        main {
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .content {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: box-shadow 0.3s;
+        }
+        .content:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+        .image-translation-section {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        #uploaded-image-container, .translation-box {
+            width: 48%;
+            height: auto;
+            border-radius: 12px;
+            padding: 40px;
+            transition: border-color 0.3s;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #00C4B3;
+        }
+        #uploaded-image-container:hover, .translation-box:hover {
+            border-color: #00a398;
+        }
+        #uploaded-image {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            display: none;
+        }
+        .placeholder {
+            font-size: 20px;
+            color: #6c757d;
+        }
+        .translation-box {
+            font-size: 16px;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 2px dashed #00C4B3;
+            overflow-y: auto;
+            max-height: 600px;
+            flex-direction: column;
+            align-items: center;
+        }
+        .button-section {
+            display: flex;
+            justify-content: center;
+            flex-wrap: nowrap;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .button-section button {
+            background-color: #00C4B3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .button-section button:hover {
+            background-color: #00a398;
+            transform: translateY(-2px);
+        }
+        .button-section input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Text Image Scanner</h1>
+    </header>
+    <main>
+        <div class="content">
+            <div class="image-translation-section">
+                <div id="uploaded-image-container">
+                    <span class="placeholder">Upload an image to start</span>
+                    <img id="uploaded-image" src="" alt="Uploaded Image">
+                </div>
+                <div class="translation-box" id="translation-box">
+                    <pre id="translation-text">read image</pre>
+                    <div class="button-section">
+                        <button class="audio-btn" id="upload-btn">Upload Image</button>
+                        <input type="file" id="file-input" accept="image/*">
+                        <button class="chat-btn" id="play-audio-btn">Listen to Text</button>
+                        <button class="image-btn" id="stop-audio-btn">Stop Playback</button>
+                        <button class="scan-btn">Activate Camera</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js"></script>
+    <script>
+        let audio = null;
+
+        document.getElementById('upload-btn').addEventListener('click', function() {
+            document.getElementById('file-input').click();
+        });
+
+        document.getElementById('file-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = document.getElementById('uploaded-image');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    document.querySelector('.placeholder').style.display = 'none';
+
+                    // Process the image with Tesseract
+                    Tesseract.recognize(
+                        e.target.result,
+                        'kor+eng',
+                        {
+                            logger: m => console.log(m)
+                        }
+                    ).then(({ data: { text } }) => {
+                        document.getElementById('translation-text').textContent = text;
+                        // Adjust the height of the containers to be equal
+                        const translationBox = document.querySelector('.translation-box');
+                        const imageContainer = document.getElementById('uploaded-image-container');
+                        const newHeight = Math.max(translationBox.scrollHeight, imageContainer.scrollHeight) + 'px';
+                        translationBox.style.height = newHeight;
+                        imageContainer.style.height = newHeight;
+                    }).catch(error => {
+                        console.error('Error:', error);
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('play-audio-btn').addEventListener('click', function() {
+            const text = document.getElementById('translation-text').textContent;
+            if (text) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                speechSynthesis.speak(utterance);
+            } else {
+                alert('No text available.');
+            }
+        });
+
+        document.getElementById('stop-audio-btn').addEventListener('click', function() {
+            if (audio) {
+                speechSynthesis.cancel();
+            }
+        });
+    </script>
+</body>
+</html>
